@@ -25,32 +25,40 @@
 
 
 static void
-PrintCapabilities(uint32 c)
+PrintCapabilities(uint32 caps)
 {
 	TRACE("capabilities:\n");
-	if (c & SVGA_CAP_RECT_FILL)			TRACE("RECT_FILL\n");
-	if (c & SVGA_CAP_RECT_COPY)			TRACE("RECT_COPY\n");
-	if (c & SVGA_CAP_RECT_PAT_FILL)		TRACE("RECT_PAT_FILL\n");
-	if (c & SVGA_CAP_LEGACY_OFFSCREEN)	TRACE("LEGACY_OFFSCREEN\n");
-	if (c & SVGA_CAP_RASTER_OP)			TRACE("RASTER_OP\n");
-	if (c & SVGA_CAP_CURSOR)			TRACE("CURSOR\n");
-	if (c & SVGA_CAP_CURSOR_BYPASS)		TRACE("CURSOR_BYPASS\n");
-	if (c & SVGA_CAP_CURSOR_BYPASS_2)	TRACE("CURSOR_BYPASS_2\n");
-	if (c & SVGA_CAP_8BIT_EMULATION)	TRACE("8BIT_EMULATION\n");
-	if (c & SVGA_CAP_ALPHA_CURSOR)		TRACE("ALPHA_CURSOR\n");
-	if (c & SVGA_CAP_GLYPH)				TRACE("GLYPH\n");
-	if (c & SVGA_CAP_GLYPH_CLIPPING)	TRACE("GLYPH_CLIPPING\n");
-	if (c & SVGA_CAP_OFFSCREEN_1)		TRACE("OFFSCREEN_1\n");
-	if (c & SVGA_CAP_ALPHA_BLEND)		TRACE("ALPHA_BLEND\n");
-	if (c & SVGA_CAP_3D)				TRACE("3D\n");
-	if (c & SVGA_CAP_EXTENDED_FIFO)		TRACE("EXTENDED_FIFO\n");
+// 	if (caps & SVGA_CAP_RECT_FILL)			TRACE("RECT_FILL\n");
+	if (caps & SVGA_CAP_RECT_COPY)			TRACE("RECT_COPY\n");
+//	if (caps & SVGA_CAP_RECT_PAT_FILL)		TRACE("RECT_PAT_FILL\n");
+//	if (caps & SVGA_CAP_LEGACY_OFFSCREEN)	TRACE("LEGACY_OFFSCREEN\n");
+//	if (caps & SVGA_CAP_RASTER_OP)			TRACE("RASTER_OP\n");
+	if (caps & SVGA_CAP_CURSOR)				TRACE("CURSOR\n");
+	if (caps & SVGA_CAP_CURSOR_BYPASS)		TRACE("CURSOR_BYPASS\n");
+	if (caps & SVGA_CAP_CURSOR_BYPASS_2)	TRACE("CURSOR_BYPASS_2\n");
+	if (caps & SVGA_CAP_8BIT_EMULATION)		TRACE("8BIT_EMULATION\n");
+	if (caps & SVGA_CAP_ALPHA_CURSOR)		TRACE("ALPHA_CURSOR\n");
+//	if (caps & SVGA_CAP_GLYPH)				TRACE("GLYPH\n");
+//	if (caps & SVGA_CAP_GLYPH_CLIPPING)		TRACE("GLYPH_CLIPPING\n");
+//	if (caps & SVGA_CAP_OFFSCREEN_1)		TRACE("OFFSCREEN_1\n");
+//	if (caps & SVGA_CAP_ALPHA_BLEND)		TRACE("ALPHA_BLEND\n");
+	if (caps & SVGA_CAP_3D)					TRACE("3D\n");
+	if (caps & SVGA_CAP_EXTENDED_FIFO)		TRACE("EXTENDED_FIFO\n");
+	if (caps & SVGA_CAP_MULTIMON)			TRACE("MULTIMON\n");
+	if (caps & SVGA_CAP_PITCHLOCK)			TRACE("PITCHLOCK\n");
+	if (caps & SVGA_CAP_IRQMASK)			TRACE("IRQMASK\n");
+	if (caps & SVGA_CAP_DISPLAY_TOPOLOGY)	TRACE("DISPLAY_TOPOLOGY\n");
+	if (caps & SVGA_CAP_GMR)				TRACE("GMR\n");
+	if (caps & SVGA_CAP_TRACES)				TRACE("TRACES\n");
+	if (caps & SVGA_CAP_GMR2)				TRACE("GMR2\n");
+	if (caps & SVGA_CAP_SCREEN_OBJECT_2)	TRACE("SCREEN_OBJECT_2\n");
 }
 
 
 static status_t
 CheckCapabilities()
 {
-	SharedInfo *si = gPd->si;
+	SharedInfo* si = gPd->si;
 	uint32 id;
 
 	/* Needed to read/write registers */
@@ -62,8 +70,9 @@ CheckCapabilities()
 	/* This should be SVGA II according to the PCI device_id,
 	 * but just in case... */
 	WriteReg(SVGA_REG_ID, SVGA_ID_2);
-	if ((id = ReadReg(SVGA_REG_ID)) != SVGA_ID_2) {
-		TRACE("SVGA_REG_ID is %" B_PRId32 ", not %d\n", id, SVGA_REG_ID);
+	id = ReadReg(SVGA_REG_ID);
+	if (id != SVGA_ID_2) {
+		TRACE("SVGA_REG_ID is %" B_PRId32 ", not %d\n", id, SVGA_ID_2);
 		return B_ERROR;
 	}
 	TRACE("SVGA_REG_ID OK\n");
@@ -72,12 +81,15 @@ CheckCapabilities()
 	si->maxWidth = ReadReg(SVGA_REG_MAX_WIDTH);
 	si->maxHeight = ReadReg(SVGA_REG_MAX_HEIGHT);
 	TRACE("max resolution: %" B_PRId32 "x%" B_PRId32 "\n", si->maxWidth, si->maxHeight);
-	si->fbDma = (void *)ReadReg(SVGA_REG_FB_START);
+
+	si->fbDma = (void*)ReadReg(SVGA_REG_FB_START);
 	si->fbSize = ReadReg(SVGA_REG_VRAM_SIZE);
 	TRACE("frame buffer: %p, size %" B_PRId32 "\n", si->fbDma, si->fbSize);
-	si->fifoDma = (void *)ReadReg(SVGA_REG_MEM_START);
+
+	si->fifoDma = (void*)ReadReg(SVGA_REG_MEM_START);
 	si->fifoSize = ReadReg(SVGA_REG_MEM_SIZE) & ~3;
 	TRACE("fifo: %p, size %" B_PRId32 "\n", si->fifoDma, si->fifoSize);
+
 	si->capabilities = ReadReg(SVGA_REG_CAPABILITIES);
 	PrintCapabilities(si->capabilities);
 	si->fifoMin = (si->capabilities & SVGA_CAP_EXTENDED_FIFO) ?

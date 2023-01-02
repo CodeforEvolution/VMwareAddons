@@ -88,9 +88,10 @@ typedef struct {
 	uint8			revision;
 	uint32			maxWidth;
 	uint32			maxHeight;
-	void			*fbDma;
+	void*			fbDma;
 	uint32			fbSize;
-	void			*fifoDma;
+	uint32			vramSize;
+	void*			fifoDma;
 	uint32			fifoSize;
 	uint32			fifoMin;
 	uint32			capabilities;
@@ -103,9 +104,9 @@ typedef struct {
 
 	/* Mapped areas */
 	area_id			fbArea;
-	void			*fb;
+	void*			fb;
 	area_id			fifoArea;
-	void			*fifo;
+	void*			fifo;
 
 	/* This changes when we switch to another mode */
 	uint32			fbOffset;
@@ -117,7 +118,7 @@ typedef struct {
 	Benaphore		engineLock;
 	Benaphore		fifoLock;
 	uint32			fifoNext;
-	
+
 	/* Cursor state */
 	bool			cursorShow;
 	uint16			cursorX;

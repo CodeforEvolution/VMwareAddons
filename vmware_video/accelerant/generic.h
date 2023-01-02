@@ -28,15 +28,23 @@ status_t GET_FRAME_BUFFER_CONFIG(frame_buffer_config *a_frame_buffer);
 status_t GET_PIXEL_CLOCK_LIMITS(display_mode *dm, uint32 *low, uint32 *high);
 status_t MOVE_DISPLAY(uint16 h_display_start, uint16 v_display_start);
 status_t GET_TIMING_CONSTRAINTS(display_timing_constraints *dtc);
+// Optional: MOVE_DISPLAY
 void SET_INDEXED_COLORS(uint count, uint8 first, uint8 *color_data, uint32 flags);
 
 uint32 DPMS_CAPABILITIES(void);
 uint32 DPMS_MODE(void);
 status_t SET_DPMS_MODE(uint32 dpms_flags);
 
+// Optional: GET_PREFERRED_DISPLAY_MODE
+// Optional: GET_MONITOR_INFO
+// Optional: GET_EDID_INFO
+// Optional: SET_BRIGHTNESS
+// Optional: GET_BRIGHTNESS
+
 status_t SET_CURSOR_SHAPE(uint16 width, uint16 height, uint16 hot_x, uint16 hot_y, uint8 *andMask, uint8 *xorMask);
 void MOVE_CURSOR(uint16 x, uint16 y);
 void SHOW_CURSOR(bool is_visible);
+// Optional: SET_CURSOR_BITMAP
 
 uint32 ACCELERANT_ENGINE_COUNT(void);
 status_t ACQUIRE_ENGINE(uint32 capabilities, uint32 max_wait, sync_token *st, engine_token **et);
@@ -50,5 +58,8 @@ void FILL_RECTANGLE(engine_token *et, uint32 color, fill_rect_params *list, uint
 void INVERT_RECTANGLE(engine_token *et, fill_rect_params *list, uint32 count);
 
 void FILL_SPAN(engine_token *et, uint32 color, uint16 *list, uint32 count);
+
+// Optional: SCREEN_TO_SCREEN_TRANSPARENT_BLIT
+// Optional: SCREEN_TO_SCREEN_SCALED_FILTERED_BLIT
 
 #endif

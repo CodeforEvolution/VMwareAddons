@@ -14,11 +14,11 @@
 #include "DriverInterface.h"
 
 typedef struct {
-	char		*names[2];
+	char*		names[2];
 	Benaphore	kernel;
 	uint32		isOpen;
 	area_id		sharedArea;
-	SharedInfo	*si;
+	SharedInfo*	si;
 	pci_info	pcii;
 } DeviceData;
 
@@ -26,8 +26,8 @@ typedef struct {
 /*--------------------------------------------------------------------*/
 /* Global variables */
 
-extern DeviceData *gPd;
-extern pci_module_info *gPciBus;
+extern DeviceData* gPd;
+extern pci_module_info* gPciBus;
 extern device_hooks gGraphicsDeviceHooks;
 
 
