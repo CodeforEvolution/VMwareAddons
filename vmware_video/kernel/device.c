@@ -58,14 +58,16 @@ PrintCapabilities(uint32 caps)
 static status_t
 CheckCapabilities()
 {
-	SharedInfo* si = gPd->si;
-	uint32 id;
+	SharedInfo* sharedInfo = gPd->sharedInfo;
+	pci_info* pciInfo = &gPd->pcii;
+
+	uint32 id = SVGA_ID_INVALID;
 
 	/* Needed to read/write registers */
-	si->indexPort = gPd->pcii.u.h0.base_registers[0] + SVGA_INDEX_PORT;
-	si->valuePort = gPd->pcii.u.h0.base_registers[0] + SVGA_VALUE_PORT;
+	sharedInfo->indexPort = pciInfo->u.h0.base_registers[0] + SVGA_INDEX_PORT;
+	sharedInfo->valuePort = pciInfo->u.h0.base_registers[0] + SVGA_VALUE_PORT;
 	TRACE("index port: %d, value port: %d\n",
-		si->indexPort, si->valuePort);
+		sharedInfo->indexPort, sharedInfo->valuePort);
 
 	/* This should be SVGA II according to the PCI device_id,
 	 * but just in case... */
@@ -78,21 +80,25 @@ CheckCapabilities()
 	TRACE("SVGA_REG_ID OK\n");
 
 	/* Grab some info */
-	si->maxWidth = ReadReg(SVGA_REG_MAX_WIDTH);
-	si->maxHeight = ReadReg(SVGA_REG_MAX_HEIGHT);
-	TRACE("max resolution: %" B_PRId32 "x%" B_PRId32 "\n", si->maxWidth, si->maxHeight);
+	sharedInfo->maxWidth = ReadReg(SVGA_REG_MAX_WIDTH);
+	sharedInfo->maxHeight = ReadReg(SVGA_REG_MAX_HEIGHT);
+	TRACE("max resolution: %" B_PRId32 "x%" B_PRId32 "\n", sharedInfo->maxWidth, sharedInfo->maxHeight);
 
-	si->fbDma = (void*)ReadReg(SVGA_REG_FB_START);
-	si->fbSize = ReadReg(SVGA_REG_VRAM_SIZE);
-	TRACE("frame buffer: %p, size %" B_PRId32 "\n", si->fbDma, si->fbSize);
+	//sharedInfo->frameBufferDMA = (void*)ReadReg(SVGA_REG_FB_START);
+	sharedInfo->frameBufferDMA = (phys_addr_t)pciInfo->u.h0.base_registers[1];
+	//sharedInfo->frameBufferSize = ReadReg(SVGA_REG_VRAM_SIZE);
+	sharedInfo->frameBufferSize = pciInfo->u.h0.base_register_sizes[1];
+	TRACE("frame buffer: %p, size %" B_PRId32 "\n", sharedInfo->frameBufferDMA, sharedInfo->frameBufferSize);
 
-	si->fifoDma = (void*)ReadReg(SVGA_REG_MEM_START);
-	si->fifoSize = ReadReg(SVGA_REG_MEM_SIZE) & ~3;
-	TRACE("fifo: %p, size %" B_PRId32 "\n", si->fifoDma, si->fifoSize);
+	//sharedInfo->fifoDMA = (void*)ReadReg(SVGA_REG_MEM_START);
+	sharedInfo->fifoDMA = (phys_addr_t)pciInfo->u.h0.base_registers[2];
+	//sharedInfo->fifoSize = ReadReg(SVGA_REG_MEM_SIZE) & ~3;
+	sharedInfo->fifoSize = pciInfo->u.h0.base_register_sizes[2];
+	TRACE("fifo: %p, size %" B_PRId32 "\n", sharedInfo->fifoDma, sharedInfo->fifoSize);
 
-	si->capabilities = ReadReg(SVGA_REG_CAPABILITIES);
-	PrintCapabilities(si->capabilities);
-	si->fifoMin = (si->capabilities & SVGA_CAP_EXTENDED_FIFO) ?
+	sharedInfo->capabilities = ReadReg(SVGA_REG_CAPABILITIES);
+	PrintCapabilities(sharedInfo->capabilities);
+	sharedInfo->fifoMin = (sharedInfo->capabilities & SVGA_CAP_EXTENDED_FIFO) ?
 		ReadReg(SVGA_REG_MEM_REGS) : 4;
 
 	return B_OK;
@@ -102,39 +108,39 @@ CheckCapabilities()
 static status_t
 MapDevice()
 {
-	SharedInfo *si = gPd->si;
+	SharedInfo* sharedInfo = gPd->sharedInfo;
 	int writeCombined = 1;
 
 	/* Map the frame buffer */
-	si->fbArea = map_physical_memory("VMware frame buffer",
-		(addr_t)si->fbDma, si->fbSize, B_ANY_KERNEL_BLOCK_ADDRESS|B_MTR_WC,
-		B_READ_AREA|B_WRITE_AREA, (void **)&si->fb);
-	if (si->fbArea < 0) {
+	sharedInfo->fbArea = map_physical_memory("VMware frame buffer",
+		(addr_t)sharedInfo->fbDma, sharedInfo->fbSize, B_ANY_KERNEL_BLOCK_ADDRESS|B_MTR_WC,
+		B_READ_AREA|B_WRITE_AREA, (void **)&sharedInfo->fb);
+	if (sharedInfo->fbArea < 0) {
 		/* Try again without write combining */
 		writeCombined = 0;
-		si->fbArea = map_physical_memory("VMware frame buffer",
-			(addr_t)si->fbDma, si->fbSize, B_ANY_KERNEL_BLOCK_ADDRESS,
-			B_READ_AREA|B_WRITE_AREA, (void **)&si->fb);
+		sharedInfo->fbArea = map_physical_memory("VMware frame buffer",
+			(addr_t)sharedInfo->fbDma, sharedInfo->fbSize, B_ANY_KERNEL_BLOCK_ADDRESS,
+			B_READ_AREA|B_WRITE_AREA, (void **)&sharedInfo->fb);
 	}
-	if (si->fbArea < 0) {
+	if (sharedInfo->fbArea < 0) {
 		TRACE("failed to map frame buffer\n");
-		return si->fbArea;
+		return sharedInfo->fbArea;
 	}
 	TRACE("frame buffer mapped: %p->%p, area %" B_PRId32 ", size %" B_PRId32 ", write "
-		"combined: %" B_PRId32 "\n", si->fbDma, si->fb, si->fbArea,
-		si->fbSize, writeCombined);
+		"combined: %" B_PRId32 "\n", sharedInfo->fbDma, sharedInfo->fb, sharedInfo->fbArea,
+		sharedInfo->fbSize, writeCombined);
 
 	/* Map the fifo */
-	si->fifoArea = map_physical_memory("VMware fifo",
-		(addr_t)si->fifoDma, si->fifoSize, B_ANY_KERNEL_BLOCK_ADDRESS,
-		B_READ_AREA|B_WRITE_AREA, (void **)&si->fifo);
-	if (si->fifoArea < 0) {
+	sharedInfo->fifoArea = map_physical_memory("VMware fifo",
+		sharedInfo->fifoDma, sharedInfo->fifoSize, B_ANY_KERNEL_BLOCK_ADDRESS,
+		B_READ_AREA|B_WRITE_AREA, (void **)&sharedInfo->fifo);
+	if (sharedInfo->fifoArea < 0) {
 		TRACE("failed to map fifo\n");
-		delete_area(si->fbArea);
-		return si->fifoArea;
+		delete_area(sharedInfo->fbArea);
+		return sharedInfo->fifoArea;
 	}
-	TRACE("fifo mapped: %p->%p, area %" B_PRId32 ", size %" B_PRId32 "\n", si->fifoDma,
-		si->fifo, si->fifoArea, si->fifoSize);
+	TRACE("fifo mapped: %p->%p, area %" B_PRId32 ", size %" B_PRId32 "\n", sharedInfo->fifoDma,
+		sharedInfo->fifo, sharedInfo->fifoArea, sharedInfo->fifoSize);
 
 	return B_OK;
 }
@@ -143,29 +149,33 @@ MapDevice()
 static void
 UnmapDevice()
 {
-	SharedInfo *si = gPd->si;
-	pci_info *pcii = &gPd->pcii;
-	uint32 tmpUlong;
+	SharedInfo* sharedInfo = gPd->sharedInfo;
+	pci_info* pciInfo = &gPd->pcii;
+	uint32 commandReg = 0;
 
 	/* Disable memory mapped IO */
-	tmpUlong = get_pci(PCI_command, 2);
-	tmpUlong &= ~PCI_command_memory;
-	set_pci(PCI_command, 2, tmpUlong);
+	commandReg = get_pci(PCI_command, 2);
+	commandReg &= ~PCI_command_memory;
+	set_pci(PCI_command, 2, commandReg);
 
 	/* Delete the areas */
-	if (si->fifoArea >= 0)
-		delete_area(si->fifoArea);
-	if (si->fbArea >= 0)
-		delete_area(si->fbArea);
-	si->fifoArea = si->fbArea = -1;
-	si->fb = si->fifo = NULL;
+	if (sharedInfo->fifoArea >= 0)
+		delete_area(sharedInfo->fifoArea);
+
+	if (sharedInfo->fbArea >= 0)
+		delete_area(sharedInfo->fbArea);
+
+	sharedInfo->fifoArea = -1;
+	sharedInfo->fbArea = -1;
+	sharedInfo->fb = NULL;
+	sharedInfo->fifo = NULL;
 }
 
 
 static status_t
 CreateShared()
 {
-	gPd->sharedArea = create_area("VMware shared", (void **)&gPd->si,
+	gPd->sharedArea = create_area("VMware shared", (void**)&gPd->sharedInfo,
 		B_ANY_KERNEL_ADDRESS, ROUND_TO_PAGE_SIZE(sizeof(SharedInfo)),
 		B_FULL_LOCK,
 		B_KERNEL_READ_AREA | B_KERNEL_WRITE_AREA | B_CLONEABLE_AREA);
@@ -175,7 +185,7 @@ CreateShared()
 	}
 	TRACE("shared area created\n");
 
-	memset(gPd->si, 0, sizeof(SharedInfo));
+	memset(gPd->sharedInfo, 0, sizeof(SharedInfo));
 	return B_OK;
 }
 
@@ -185,16 +195,16 @@ FreeShared()
 {
 	delete_area(gPd->sharedArea);
 	gPd->sharedArea = -1;
-	gPd->si = NULL;
+	gPd->sharedInfo = NULL;
 }
 
 
 static status_t
-OpenHook(const char *name, uint32 flags, void **cookie)
+OpenHook(const char* name, uint32 flags, void** cookie)
 {
-	status_t ret = B_OK;
-	pci_info *pcii = &gPd->pcii;
-	uint32 tmpUlong;
+	status_t result = B_ERROR;
+	pci_info* pcii = &gPd->pcii;
+	uint32 commandReg = 0;
 
 	TRACE("OpenHook (%s, %" B_PRId32 ")\n", name, flags);
 	ACQUIRE_BEN(gPd->kernel);
@@ -203,16 +213,21 @@ OpenHook(const char *name, uint32 flags, void **cookie)
 		goto markAsOpen;
 
 	/* Enable memory mapped IO and VGA I/O */
-	tmpUlong = get_pci(PCI_command, 2);
-	tmpUlong |= PCI_command_memory;
-	tmpUlong |= PCI_command_io;
-	set_pci(PCI_command, 2, tmpUlong);
+	commandReg = get_pci(PCI_command, 2);
+	commandReg |= PCI_command_memory;
+	commandReg |= PCI_command_io;
+	set_pci(PCI_command, 2, commandReg);
 
-	if ((ret = CreateShared()) != B_OK)
+	result = CreateShared();
+	if (result != B_OK)
 		goto done;
-	if ((ret = CheckCapabilities()) != B_OK)
+
+	result = CheckCapabilities();
+	if (result != B_OK)
 		goto freeShared;
-	if ((ret = MapDevice()) != B_OK)
+
+	result = MapDevice();
+	if (result != B_OK)
 		goto freeShared;
 
 markAsOpen:
@@ -226,7 +241,7 @@ freeShared:
 done:
 	RELEASE_BEN(gPd->kernel);
 	TRACE("OpenHook: %" B_PRId32 "\n", ret);
-	return ret;
+	return result;
 }
 
 
@@ -239,12 +254,16 @@ ReadHook(void *dev, off_t pos, void *buf, size_t *len)
 	*len = 0;
 	return B_NOT_ALLOWED;
 }
+
+
 static status_t
 WriteHook(void *dev, off_t pos, const void *buf, size_t *len)
 {
 	*len = 0;
 	return B_NOT_ALLOWED;
 }
+
+
 static status_t
 CloseHook(void *dev)
 {
@@ -256,7 +275,7 @@ CloseHook(void *dev)
 /* FreeHook: closes down the device */
 
 static status_t
-FreeHook(void *dev)
+FreeHook(void* dev)
 {
 	TRACE("FreeHook\n");
 	ACQUIRE_BEN(gPd->kernel);
@@ -274,12 +293,12 @@ FreeHook(void *dev)
 
 
 static void
-UpdateCursor(SharedInfo *si)
+UpdateCursor(SharedInfo *sharedInfo)
 {
 	WriteReg(SVGA_REG_CURSOR_ID, CURSOR_ID);
-	WriteReg(SVGA_REG_CURSOR_X, si->cursorX);
-	WriteReg(SVGA_REG_CURSOR_Y, si->cursorY);
-	WriteReg(SVGA_REG_CURSOR_ON, si->cursorShow ? SVGA_CURSOR_ON_SHOW :
+	WriteReg(SVGA_REG_CURSOR_X, sharedInfo->cursorX);
+	WriteReg(SVGA_REG_CURSOR_Y, sharedInfo->cursorY);
+	WriteReg(SVGA_REG_CURSOR_ON, sharedInfo->cursorShow ? SVGA_CURSOR_ON_SHOW :
 				SVGA_CURSOR_ON_HIDE);
 }
 
@@ -288,9 +307,9 @@ UpdateCursor(SharedInfo *si)
 /* ControlHook: responds the the ioctl from the accelerant */
 
 static status_t
-ControlHook(void *dev, uint32 msg, void *buf, size_t len)
+ControlHook(void* dev, uint32 msg, void* buf, size_t len)
 {
-	SharedInfo *si = gPd->si;
+	SharedInfo* sharedInfo = gPd->sharedInfo;
 
 	switch (msg) {
 		case B_GET_ACCELERANT_SIGNATURE:
@@ -325,14 +344,14 @@ ControlHook(void *dev, uint32 msg, void *buf, size_t len)
 		case VMWARE_SET_MODE:
 		{
 			display_mode dm;
-			if (user_memcpy(&dm, buf, sizeof(display_mode)) < B_OK)
+			if (user_memcpy(&dm, buf, sharedInfozeof(display_mode)) < B_OK)
 				return B_BAD_ADDRESS;
 			WriteReg(SVGA_REG_WIDTH, dm.virtual_width);
 			WriteReg(SVGA_REG_HEIGHT, dm.virtual_height);
 			WriteReg(SVGA_REG_BITS_PER_PIXEL, BppForSpace(dm.space));
-			WriteReg(SVGA_REG_ENABLE, 1); //HAKILO
-			si->fbOffset = ReadReg(SVGA_REG_FB_OFFSET);
-			si->bytesPerRow = ReadReg(SVGA_REG_BYTES_PER_LINE);
+			WriteReg(SVGA_REG_ENABLE, 1);
+			sharedInfo->fbOffset = ReadReg(SVGA_REG_FB_OFFSET);
+			sharedInfo->bytesPerRow = ReadReg(SVGA_REG_BYTES_PER_LINE);
 			ReadReg(SVGA_REG_DEPTH);
 			ReadReg(SVGA_REG_PSEUDOCOLOR);
 			ReadReg(SVGA_REG_RED_MASK);
@@ -364,23 +383,23 @@ ControlHook(void *dev, uint32 msg, void *buf, size_t len)
 			uint16 pos[2];
 			if (user_memcpy(pos, buf, sizeof(pos)) < B_OK)
 				return B_BAD_ADDRESS;
-			si->cursorX = pos[0];
-			si->cursorY = pos[1];
-			UpdateCursor(si);
+			sharedInfo->cursorX = pos[0];
+			sharedInfo->cursorY = pos[1];
+			UpdateCursor(sharedInfo);
 			return B_OK;
 		}
 
 		case VMWARE_SHOW_CURSOR:
 		{
-			if (user_memcpy(&si->cursorShow, buf, sizeof(bool)) < B_OK)
+			if (user_memcpy(&sharedInfo->cursorShow, buf, sizeof(bool)) < B_OK)
 				return B_BAD_ADDRESS;
-			UpdateCursor(si);
+			UpdateCursor(sharedInfo);
 			return B_OK;
 		}
 
 		case VMWARE_GET_DEVICE_NAME:
 			dprintf("device: VMWARE_GET_DEVICE_NAME %s\n", gPd->names[0]);
-			if (user_strlcpy((char *)buf, gPd->names[0],
+			if (user_strlcpy((char*)buf, gPd->names[0],
 					B_PATH_NAME_LENGTH) < B_OK)
 				return B_BAD_ADDRESS;
 			return B_OK;

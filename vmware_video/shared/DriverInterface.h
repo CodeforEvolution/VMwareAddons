@@ -88,11 +88,13 @@ typedef struct {
 	uint8			revision;
 	uint32			maxWidth;
 	uint32			maxHeight;
-	void*			fbDma;
-	uint32			fbSize;
-	uint32			vramSize;
-	void*			fifoDma;
+
+	phys_addr_t		frameBufferDMA;
+	uint32			frameBufferSize;
+
+	phys_addr_t		fifoDMA;
 	uint32			fifoSize;
+
 	uint32			fifoMin;
 	uint32			capabilities;
 	uint32			fifoCapabilities;
@@ -104,9 +106,9 @@ typedef struct {
 
 	/* Mapped areas */
 	area_id			fbArea;
-	void*			fb;
+	void*			frameBufferMapped;
 	area_id			fifoArea;
-	void*			fifo;
+	void*			fifoMapped;
 
 	/* This changes when we switch to another mode */
 	uint32			fbOffset;

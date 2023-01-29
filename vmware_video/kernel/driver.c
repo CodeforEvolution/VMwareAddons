@@ -17,8 +17,8 @@
 #include <string.h>
 
 
-DeviceData *gPd;
-pci_module_info *gPciBus;
+DeviceData* gPd;
+pci_module_info* gPciBus;
 
 
 int32 api_version = B_CUR_DRIVER_API_VERSION;
@@ -33,7 +33,7 @@ init_hardware(void)
 
 	TRACE("init_hardware\n");
 
-	if (get_module(B_PCI_MODULE_NAME, (module_info **)&gPciBus) != B_OK)
+	if (get_module(B_PCI_MODULE_NAME, (module_info**)&gPciBus) != B_OK)
 		return B_ERROR;
 
 	for (i = 0; (*gPciBus->get_nth_pci_info)(i, &pcii) == B_OK; i++) {
@@ -55,23 +55,24 @@ status_t
 init_driver(void)
 {
 	status_t ret = ENODEV;
-	int i;
 
 	TRACE("init_driver\n");
 
-	if (get_module(B_PCI_MODULE_NAME, (module_info **)&gPciBus) != B_OK) {
+	ret = get_module(B_PCI_MODULE_NAME, (module_info**)&gPciBus);
+	if (ret != B_OK) {
 		ret = B_ERROR;
 		goto done;
 	}
 
-	if (!(gPd = calloc(1, sizeof(DeviceData)))) {
+	gPd = calloc(1, sizeof(DeviceData));
+	if (gPd == NULL) {
 		put_module(B_PCI_MODULE_NAME);
 		ret = B_ERROR;
 		goto done;
 	}
 
 	/* Remember the PCI information */
-	for (i = 0; (*gPciBus->get_nth_pci_info)(i, &gPd->pcii) == B_OK; i++) 
+	for (int i = 0; (*gPciBus->get_nth_pci_info)(i, &gPd->pcii) == B_OK; i++)
 		if (gPd->pcii.vendor_id == PCI_VENDOR_ID_VMWARE &&
 			gPd->pcii.device_id == PCI_DEVICE_ID_VMWARE_SVGA2) {
 			ret = B_OK;
@@ -102,16 +103,16 @@ done:
 }
 
 
-const char **
+const char**
 publish_devices(void)
 {
 	TRACE("publish_devices\n");
-	return (const char **)gPd->names;
+	return (const char**)gPd->names;
 }
 
 
-device_hooks *
-find_device(const char *name)
+device_hooks*
+find_device(const char* name)
 {
 	TRACE("find_device (%s)\n", name);
 	if (gPd->names[0] && !strcmp(gPd->names[0], name))

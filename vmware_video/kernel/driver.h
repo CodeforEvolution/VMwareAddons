@@ -34,32 +34,32 @@ extern device_hooks gGraphicsDeviceHooks;
 /*--------------------------------------------------------------------*/
 /* Access to 32 bit registers in the IO address space. */
 
-static inline uint32
-inl(uint16 port)
-{
-	uint32 ret;
-	__asm__ __volatile__("inl %w1, %0" : "=a" (ret) : "Nd" (port));
-	return ret;
-}
-
-static inline void
-outl(uint16 port, uint32 value)
-{
-	__asm__ __volatile__("outl %1, %w0" :: "Nd" (port), "a" (value));
-}
+// static inline uint32
+// inl(uint16 port)
+// {
+// 	uint32 ret;
+// 	__asm__ __volatile__("inl %w1, %0" : "=a" (ret) : "Nd" (port));
+// 	return ret;
+// }
+//
+// static inline void
+// outl(uint16 port, uint32 value)
+// {
+// 	__asm__ __volatile__("outl %1, %w0" :: "Nd" (port), "a" (value));
+// }
 
 static inline uint32
 ReadReg(uint32 index)
 {
-	outl(gPd->si->indexPort, index);
-	return inl(gPd->si->valuePort);
+	gPciBus->write_io_32(gPd->si->indexPort, index);
+	return gPciBus->read_io_32(gPd->si->valuePort);
 }
 
 static inline void
 WriteReg(uint32 index, uint32 value)
 {
-	outl(gPd->si->indexPort, index);
-	outl(gPd->si->valuePort, value);
+	gPciBus->write_io_32(gPd->si->indexPort, index);
+	gPciBus->write_io_32(gPd->si->valuePort, value);
 }
 
 #endif	// DRIVER_H
